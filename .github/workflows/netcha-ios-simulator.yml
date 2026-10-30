@@ -1,0 +1,68 @@
+name: Netcha iOS Simulator Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.json"
+      - "www/**"
+      - ".github/workflows/netcha-ios-simulator.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios-simulator:
+    runs-on: macos-15
+    steps:
+      - name: Checkout Netcha iOS
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate and sync iOS project
+        run: |
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Configure iOS privacy descriptions
+        run: |
+          PLIST="ios/App/App/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string Netcha utilise la caméra pour les photos et les stories." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription Netcha utilise la caméra pour les photos et les stories." "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Netcha utilise le microphone pour les messages vocaux et les vidéos." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription Netcha utilise le microphone pour les messages vocaux et les vidéos." "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string Netcha accède aux photos pour publier des contenus." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryUsageDescription Netcha accède aux photos pour publier des contenus." "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string Netcha peut enregistrer les contenus que vous créez." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription Netcha peut enregistrer les contenus que vous créez." "$PLIST"
+
+      - name: Build iOS Simulator app
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package simulator app
+        run: |
+          APP_PATH="$(find build/DerivedData/Build/Products/Debug-iphonesimulator -maxdepth 1 -name 'App.app' -print -quit)"
+          test -n "$APP_PATH"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" build/netcha-ios-simulator.zip
+
+      - name: Upload simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: netcha-ios-simulator-app
+          path: build/netcha-ios-simulator.zip
+          if-no-files-found: error
+          retention-days: 14
