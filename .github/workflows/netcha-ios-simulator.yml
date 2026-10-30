@@ -66,3 +66,5 @@ jobs:
           path: build/netcha-ios-simulator.zip
           if-no-files-found: error
           retention-days: 14
+
+# Workflow trigger verification: this commit launches the simulator build.
