@@ -2,7 +2,7 @@
 
 Version iOS de **Netcha**, indépendante de Netcha+.
 
-Ce dépôt prépare une application iPhone basée sur Capacitor 8 et connectée au service Netcha existant par HTTPS. Il ne contient ni copie de la base de données ni modification du backend.
+Ce dépôt prépare une application iPhone basée sur Capacitor 8.6.0 et connectée au service Netcha existant par HTTPS. Il ne contient ni copie de la base de données ni modification du backend.
 
 ## État
 
