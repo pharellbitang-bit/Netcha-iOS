@@ -55,6 +55,7 @@ jobs:
 
       - name: Add and register Netcha app privacy manifest
         run: |
+          find node_modules/@capacitor/ios -name PrivacyInfo.xcprivacy -print -quit | grep -q .
           mkdir -p ios/App/App
           cp PrivacyInfo.xcprivacy ios/App/App/PrivacyInfo.xcprivacy
           gem install xcodeproj --no-document
