@@ -53,9 +53,26 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string Netcha accède aux photos pour publier des contenus." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryUsageDescription Netcha accède aux photos pour publier des contenus." "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string Netcha peut enregistrer les contenus que vous créez." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription Netcha peut enregistrer les contenus que vous créez." "$PLIST"
 
-      - name: Verify generated iOS privacy manifest
+      - name: Add and register Netcha app privacy manifest
         run: |
-          find ios -name PrivacyInfo.xcprivacy -print -quit | grep -q .
+          mkdir -p ios/App/App
+          cp PrivacyInfo.xcprivacy ios/App/App/PrivacyInfo.xcprivacy
+          gem install xcodeproj --no-document
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+          project_path = 'ios/App/App.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+          target = project.targets.find { |item| item.name == 'App' }
+          abort 'App target not found' unless target
+          group = project.main_group.find_subpath('App', true)
+          file_ref = group.files.find { |item| item.path == 'PrivacyInfo.xcprivacy' }
+          file_ref ||= group.new_file('PrivacyInfo.xcprivacy')
+          unless target.resources_build_phase.files_references.include?(file_ref)
+            target.resources_build_phase.add_file_reference(file_ref)
+          end
+          project.save
+          RUBY
+          plutil -lint ios/App/App/PrivacyInfo.xcprivacy
       - name: Build iOS Simulator app
         run: |
           xcodebuild \
@@ -70,6 +87,8 @@ jobs:
         run: |
           APP_PATH="$(find build/DerivedData/Build/Products/Debug-iphonesimulator -maxdepth 1 -name 'App.app' -print -quit)"
           test -n "$APP_PATH"
+          test -f "$APP_PATH/PrivacyInfo.xcprivacy"
+          plutil -lint "$APP_PATH/PrivacyInfo.xcprivacy"
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" build/netcha-ios-simulator.zip
 
       - name: Upload simulator build
