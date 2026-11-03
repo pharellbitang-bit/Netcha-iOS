@@ -2,6 +2,14 @@ name: Netcha iOS Simulator Build
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.json"
+      - "www/**"
+      - ".github/workflows/netcha-ios-simulator.yml"
   push:
     branches: [main]
     paths:
@@ -16,7 +24,7 @@ permissions:
 
 jobs:
   build-ios-simulator:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - name: Checkout Netcha iOS
         uses: actions/checkout@v4
@@ -24,11 +32,14 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm install
+
+      - name: Audit iOS dependencies
+        run: npm audit --audit-level=high
 
       - name: Generate and sync iOS project
         run: |
@@ -43,6 +54,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string Netcha accède aux photos pour publier des contenus." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryUsageDescription Netcha accède aux photos pour publier des contenus." "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string Netcha peut enregistrer les contenus que vous créez." "$PLIST" || /usr/libexec/PlistBuddy -c "Set :NSPhotoLibraryAddUsageDescription Netcha peut enregistrer les contenus que vous créez." "$PLIST"
 
+      - name: Verify generated iOS privacy manifest
+        run: |
+          find ios -name PrivacyInfo.xcprivacy -print -quit | grep -q .
       - name: Build iOS Simulator app
         run: |
           xcodebuild \
